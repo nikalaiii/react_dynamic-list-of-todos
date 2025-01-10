@@ -1,43 +1,93 @@
-import React from 'react';
-import { Loader } from '../Loader';
+import React, { useEffect, useState } from 'react';
+import { Loader } from '../Loader/Loader';
+import { Todo } from '../../types/Todo';
+import { User } from '../../types/User';
 
-export const TodoModal: React.FC = () => {
+type Props = {
+  todo: Todo;
+  onClose: (status: boolean) => void;
+};
+
+export const TodoModal: React.FC<Props> = ({ todo, onClose }) => {
+  const [modalError, setModalError] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const findInfo = async () => {
+    setModalError(false);
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/users.json');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+
+      const data: User[] = await response.json();
+      const currentUser = data.find(user => user.id === todo.userId);
+
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        setModalError(true);
+      }
+    } catch {
+      setModalError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    findInfo();
+  }, [todo]);
+
   return (
-    <div className="modal is-active" data-cy="modal">
+    
+    <div className={`modal ${modalError || loading || user ? "modal is-active" : ""}`} data-cy="modal">
       <div className="modal-background" />
-
-      {true ? (
-        <Loader />
-      ) : (
-        <div className="modal-card">
-          <header className="modal-card-head">
-            <div
-              className="modal-card-title has-text-weight-medium"
-              data-cy="modal-header"
-            >
-              Todo #2
-            </div>
-
-            {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-            <button type="button" className="delete" data-cy="modal-close" />
-          </header>
-
-          <div className="modal-card-body">
-            <p className="block" data-cy="modal-title">
-              quis ut nam facilis et officia qui
-            </p>
-
-            <p className="block" data-cy="modal-user">
-              {/* <strong className="has-text-success">Done</strong> */}
-              <strong className="has-text-danger">Planned</strong>
-
-              {' by '}
-
-              <a href="mailto:Sincere@april.biz">Leanne Graham</a>
-            </p>
+      
+      {loading ? <Loader /> : <div className="modal-card">
+        <header className="modal-card-head">
+          <div
+            className="modal-card-title has-text-weight-medium"
+            data-cy="modal-header"
+          >
+            {`Todo #${todo.id}`}
           </div>
+
+          <button
+            type="button"
+            className="delete"
+            data-cy="modal-close"
+            onClick={() => onClose(false)}
+          />
+        </header>
+
+        <div className="modal-card-body">
+          <p className="block" data-cy="modal-title">
+            {todo.title}
+          </p>
+
+          <p className="block" data-cy="modal-user">
+            {todo.completed ? (
+              <strong className="has-text-success">Done</strong>
+            ) : (
+              <strong className="has-text-danger">Planned</strong>
+            )}
+
+            {' by '}
+
+            {user ? (
+              <a href={`mailto:${user.email}`}>{user.name}</a>
+            ) : modalError ? (
+              <span>User not found</span>
+            ) : (
+              <span>Loading user...</span>
+            )}
+          </p>
         </div>
-      )}
+      </div>}
     </div>
   );
 };
